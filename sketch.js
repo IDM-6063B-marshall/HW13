@@ -1,85 +1,75 @@
-// serial variables
 let mSerial;
-
 let connectButton;
-
 let readyToReceive;
+let ll = 25;  // Initial line length (set to an average value)
+let rotationAngle = 0;  // Start with 0 degree rotation
+let rectColor;  // Variable to hold the rectangle color
 
-// project variables
-let mElls = [];
+function setup() {
+  createCanvas(windowWidth, windowHeight);  // Create the canvas
+
+  mSerial = createSerial();  // Initialize serial communication
+
+  connectButton = createButton("Connect To Serial");
+  connectButton.position(width / 2, height / 2);  // Position the button in the center
+  connectButton.mousePressed(connectToSerial);  // Call the connect function when clicked
+
+  frameRate(2);  // Set frame rate to 2 frames per second (slow)
+  readyToReceive = false;  // Initially, we are not ready to receive data
+  rectColor = color(0, 0, 0);  // Default color (black)
+}
 
 function receiveSerial() {
-  let line = mSerial.readUntil("\n");
-  trim(line);
-  if (!line) return;
-
-  if (line.charAt(0) != "{") {
-    print("error: ", line);
-    readyToReceive = true;
-    return;
+  let mLine = mSerial.readUntil("\n");  // Read data until newline
+  
+  // Check if the received line is a button press signal
+  if (mLine === "BUTTON_PRESSED") {
+    rectColor = color(random(255), random(255), random(255));  // Randomize rectangle color
+  } else {
+    let potentValue = int(mLine);  // Convert the string to an integer (potentiometer value)
+    print(mLine, potentValue);  // Debugging: print raw data and converted value
+    
+    // Map the potentiometer value (0-1023) to a line length range (10-50)
+    ll = map(potentValue, 0, 4095, 10, 50);  
+    readyToReceive = true;  // Mark serial data as ready to use
   }
-
-  // get data from Serial string
-  let data = JSON.parse(line).data;
-  let a0 = data.A0;
-  let d2 = data.D2;
-
-  // use data to update project variables
-  if (d2.isPressed) {
-    mElls.push({
-      x: random(width),
-      y: random(height),
-      c: map(d2.count % 20, 0, 20, 155, 255),
-      d: map(a0.value, 0, 4095, 20, 200),
-    });
-  }
-
-  // serial update
-  readyToReceive = true;
 }
 
 function connectToSerial() {
   if (!mSerial.opened()) {
-    mSerial.open(9600);
-
+    mSerial.open(9600);  // Open serial connection at 9600 baud
+    connectButton.hide();  // Hide the connect button
     readyToReceive = true;
-    connectButton.hide();
   }
-}
-
-function setup() {
-  // setup project
-  createCanvas(windowWidth, windowHeight);
-
-  // setup serial
-  readyToReceive = false;
-
-  mSerial = createSerial();
-
-  connectButton = createButton("Connect To Serial");
-  connectButton.position(width / 2, height / 2);
-  connectButton.mousePressed(connectToSerial);
 }
 
 function draw() {
-  // project logic
-  background(0);
+  background(255);  // Use a white background
 
-  for (let i = 0; i < mElls.length; i++) {
-    let me = mElls[i];
-    fill(me.c, 0, 0);
-    ellipse(me.x, me.y, me.d, me.d);
+  // Generate the grid of rectangles
+  for (let y = -10; y < windowHeight + 100; y += 40) {
+    for (let x = 0; x < windowWidth + 100; x += 40) {
+      // Randomize X and Y for rectangle placement
+      let rx = random(5, 15);
+      let ry = random(5, 15);
+      push();
+      translate(x, y);
+      rotate(radians(rotationAngle));  // Rotate the entire grid by the current angle
+      fill(rectColor);  // Set the fill color to the randomized color
+      rect(rx, ry, ll, 1);  // Horizontal line
+      pop();
+    }
   }
 
-  // update serial: request new data
+  // If serial connection is open and data is ready to be sent, request new data
   if (mSerial.opened() && readyToReceive) {
-    readyToReceive = false;
-    mSerial.clear();
-    mSerial.write(0xab);
+    mSerial.clear();  // Clear any old data in the serial buffer
+    mSerial.write(0xAB);  // Send a byte to request data from Arduino
+    readyToReceive = false;  // Reset ready-to-receive flag
   }
 
-  // update serial: read new data
-  if (mSerial.availableBytes() > 8) {
-    receiveSerial();
+  // If there's data available in the serial buffer, process it
+  if (mSerial.availableBytes() > 0) {
+    receiveSerial();  // Process the incoming serial data
   }
 }
