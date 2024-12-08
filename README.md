@@ -1,17 +1,7 @@
 # HW13 Template
 
-Arduino reads a button on pin 2 and a potentiometer on pin A0 and passes those values on to the p5js sketch via a Serial connection.
+I recreated my code from HW04B, which was Wall Drawing #45 (1970): "Straight lines 25 cm long, not touching, covering the wall evenly."
 
-The object that is created and sent to p5js looks like this:
+I mapped the potentiometer to the line length so that different values shorten or lengthen the lines. I also included a button which rotates the orientation of the canvas. Although I was able to get the Arduino to connect to the serial monitor I had trouble with certain aspects of the JSON connection and had to ask ChatGPT to help me in order to stop getting syntax errors. I also had my button wired wrong for a long time — I feel like with coding more than most things I have to give myself several days to sleep on a problem and realize what's wrong (in this case, resistor connecting to the wrong pin, oopsie).
 
-```
-data = {
-  A0: { value: integer },
-  D2: {
-    isPressed: boolean,
-    count: integer
-  }
-}
-```
-
-In p5js `A0.value` is used to change ellipse size, `D2.isPressed` is used to add new ellipses to an array and `D2.count` is used to change the color of new ellipses.
+![circuit](./circuit.png)

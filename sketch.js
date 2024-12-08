@@ -1,75 +1,87 @@
+// Serial variables
 let mSerial;
 let connectButton;
-let readyToReceive;
-let ll = 25;  // Initial line length (set to an average value)
-let rotationAngle = 0;  // Start with 0 degree rotation
-let rectColor;  // Variable to hold the rectangle color
+let readyToReceive = false;
 
-function setup() {
-  createCanvas(windowWidth, windowHeight);  // Create the canvas
-
-  mSerial = createSerial();  // Initialize serial communication
-
-  connectButton = createButton("Connect To Serial");
-  connectButton.position(width / 2, height / 2);  // Position the button in the center
-  connectButton.mousePressed(connectToSerial);  // Call the connect function when clicked
-
-  frameRate(2);  // Set frame rate to 2 frames per second (slow)
-  readyToReceive = false;  // Initially, we are not ready to receive data
-  rectColor = color(0, 0, 0);  // Default color (black)
-}
+// Project variables
+let rectLength = 20; 
+let canvasRotation = 0; 
+let lastButtonState = 0;  
 
 function receiveSerial() {
-  let mLine = mSerial.readUntil("\n");  // Read data until newline
-  
-  // Check if the received line is a button press signal
-  if (mLine === "BUTTON_PRESSED") {
-    rectColor = color(random(255), random(255), random(255));  // Randomize rectangle color
-  } else {
-    let potentValue = int(mLine);  // Convert the string to an integer (potentiometer value)
-    print(mLine, potentValue);  // Debugging: print raw data and converted value
-    
-    // Map the potentiometer value (0-1023) to a line length range (10-50)
-    ll = map(potentValue, 0, 4095, 10, 50);  
-    readyToReceive = true;  // Mark serial data as ready to use
+  let line = mSerial.readUntil("\n");
+  trim(line);
+  if (!line) return;
+
+  // Log the raw data to the console for debugging
+  console.log("Raw data received:", line);
+
+  // Split the line by comma (potentiometer value, button state)
+  //ChatGPT helped me debug the JSON stuff
+  let data = line.split(",");
+  if (data.length === 2) {
+    let potentiometerValue = int(data[0]);  // Potentiometer value
+    let buttonState = int(data[1]);  // Button state 
+
+    // Use potentiometer value to control the rectangle length (map to 10-50)
+    rectLength = map(potentiometerValue, 0, 4095, 10, 50);
+
+    // Check if the button was pressed (only when it changes from released to pressed)
+    if (buttonState === 1 && lastButtonState === 0) {
+      canvasRotation += 90;  // Rotate canvas by 90 degrees
+      if (canvasRotation >= 360) {
+        canvasRotation = 0;  // Reset to 0 degrees after a full rotation
+      }
+    }
+
+    lastButtonState = buttonState;
+    readyToReceive = true;
   }
 }
 
 function connectToSerial() {
   if (!mSerial.opened()) {
-    mSerial.open(9600);  // Open serial connection at 9600 baud
-    connectButton.hide();  // Hide the connect button
+    mSerial.open(9600);
     readyToReceive = true;
+    connectButton.hide();
   }
 }
 
-function draw() {
-  background(255);  // Use a white background
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  frameRate(5);  // Set frame rate to 5 FPS or it looks very bad 
 
-  // Generate the grid of rectangles
-  for (let y = -10; y < windowHeight + 100; y += 40) {
-    for (let x = 0; x < windowWidth + 100; x += 40) {
-      // Randomize X and Y for rectangle placement
-      let rx = random(5, 15);
-      let ry = random(5, 15);
+  mSerial = createSerial();
+  connectButton = createButton("Connect To Serial");
+  connectButton.position(width / 2, height / 2);
+  connectButton.mousePressed(connectToSerial);
+}
+
+function draw() {
+  background(255);
+  translate(width / 2, height / 2);  // (0, 0) at center
+  rotate(radians(canvasRotation));  // Rotate canvas
+
+  // Draw the grid of rectangles
+  for (let y = -height / 2; y < height / 2; y += rectLength * 1.5) {
+    for (let x = -width / 2; x < width / 2; x += rectLength * 1.5) {
+      let rx = random(5, 15);  // Randomize X position
+      let ry = random(5, 15);  // Randomize Y position
+
       push();
       translate(x, y);
-      rotate(radians(rotationAngle));  // Rotate the entire grid by the current angle
-      fill(rectColor);  // Set the fill color to the randomized color
-      rect(rx, ry, ll, 1);  // Horizontal line
+      rect(rx, ry, 1, rectLength);  // Draw rectangle with dynamic length
       pop();
     }
   }
 
-  // If serial connection is open and data is ready to be sent, request new data
   if (mSerial.opened() && readyToReceive) {
-    mSerial.clear();  // Clear any old data in the serial buffer
-    mSerial.write(0xAB);  // Send a byte to request data from Arduino
-    readyToReceive = false;  // Reset ready-to-receive flag
+    readyToReceive = false;
+    mSerial.clear();
+    mSerial.write(0xab); 
   }
 
-  // If there's data available in the serial buffer, process it
-  if (mSerial.availableBytes() > 0) {
-    receiveSerial();  // Process the incoming serial data
+  if (mSerial.availableBytes() > 8) {
+    receiveSerial();
   }
 }

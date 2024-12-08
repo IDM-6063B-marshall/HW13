@@ -11,20 +11,26 @@ void setup() {
 }
 
 void loop() {
-  int potentValue = analogRead(A0); 
-  int buttonState = digitalRead(buttonPin);
-    if (buttonState != lastButtonState) {
-    lastDebounceTime = millis();  
+  int potentValue = analogRead(A0);  // Read potentiometer value
+  int currentButtonState = digitalRead(buttonPin);  // Read button state
+  
+  // Check if button state has changed (debounce)
+  if (currentButtonState != lastButtonState) {
+    lastDebounceTime = millis();  // Reset debounce timer
   }
 
+  // Only process the button press if debounce delay has passed
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (buttonState == LOW && lastButtonState == HIGH) {  // Button was pressed (LOW because it's a pull-up)
-      Serial.println("BUTTON_PRESSED");  
+    if (currentButtonState == HIGH && lastButtonState == LOW) { 
     }
   }
 
-  lastButtonState = buttonState;  
-  
-  Serial.println(potentValue);
-  delay(100);  
+  // Send data as plain text (potentiometer_value,button_state)
+  //ChatGPT helped me debug the JSON stuff
+  String dataToSend = String(potentValue) + "," + String(currentButtonState == LOW ? 1 : 0); 
+  Serial.println(dataToSend);
+
+  lastButtonState = currentButtonState;  
+
+  delay(100); 
 }
